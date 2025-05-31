@@ -1,0 +1,14 @@
+[
+    {
+      "title": "Fox & Friends",
+      "start": "2025-05-30T08:00:00",
+      "end": "2025-05-30T10:00:00",
+      "special": false
+    },
+    {
+      "title": "America’s Newsroom",
+      "start": "2025-05-30T10:00:00",
+      "end": "2025-05-30T12:00:00",
+      "special": true
+    }
+  ]
