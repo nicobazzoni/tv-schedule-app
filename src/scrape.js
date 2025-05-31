@@ -69,7 +69,7 @@ try {
         const t = title.toLowerCase();
         return (
           t.includes('studio') &&
-          !t.includes('cut-in') &&
+         
           !t.includes('maintenance') &&
           !t.includes('standby') &&
           !t.includes('demolished') &&

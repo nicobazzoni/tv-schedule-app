@@ -1,6 +1,7 @@
 // ScheduleContainer.jsx
 import React, { useState, useEffect } from 'react';
 import NowNext from './NowNext';
+import SpecialsToday from './SpecialsToday';
 
 const POST_URL = 'https://us-central1-tv-schedule-app-nico.cloudfunctions.net/receiveSchedule';
 
@@ -27,5 +28,10 @@ export default function ScheduleContainer() {
       });
   }, []);
 
-  return <NowNext schedule={schedule} loading={loading} error={error} />;
+  return (
+    <>
+      <NowNext schedule={schedule} loading={loading} error={error} />
+      {/* <SpecialsToday schedule={schedule} loading={loading} error={error} /> */}
+    </>
+  );
 }
