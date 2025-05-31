@@ -29,9 +29,9 @@ export default function ScheduleContainer() {
   }, []);
 
   return (
-    <>
+    <div className=" mt-5 w-full ">
       <NowNext schedule={schedule} loading={loading} error={error} />
       {/* <SpecialsToday schedule={schedule} loading={loading} error={error} /> */}
-    </>
+    </div>
   );
 }

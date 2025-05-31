@@ -6,8 +6,10 @@ export default function NowNext() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [now, setNow] = useState(DateTime.local().setZone('America/New_York'));
-  const currentDate = DateTime.local().setZone('America/New_York').toFormat('cccc, DDD');
-  // Example: "Saturday, May 31, 2025"
+
+  const currentDate = now.toFormat('cccc, LLLL d, yyyy');
+  const formattedNow = now.toFormat('hh:mm:ss a');
+
   const fetchSchedule = async () => {
     try {
       const res = await fetch('https://us-central1-tv-schedule-app-nico.cloudfunctions.net/receiveSchedule');
@@ -25,36 +27,29 @@ export default function NowNext() {
 
   useEffect(() => {
     fetchSchedule();
-  
     const scheduleInterval = setInterval(fetchSchedule, 300000); // 5 min
     const timeInterval = setInterval(() => {
-        setNow(DateTime.local().setZone('America/New_York'));
-      }, 1000); // update every second
-  
+      setNow(DateTime.local().setZone('America/New_York'));
+    }, 1000); // update every second
+
     return () => {
       clearInterval(scheduleInterval);
       clearInterval(timeInterval);
     };
   }, []);
 
-  if (loading) return <div className="p-4">Loading…</div>;
-  if (error) return <div className="p-4 text-red-600">Error loading schedule.</div>;
-  if (!Array.isArray(schedule)) return <div className="p-4 text-gray-500">No schedule available.</div>;
-
-  
-  const formattedNow = now.toFormat('hh:mm:ss a');
+  if (loading) return <div className="p-6 text-lg">Loading…</div>;
+  if (error) return <div className="p-6 text-red-600">Error loading schedule.</div>;
+  if (!Array.isArray(schedule)) return <div className="p-6 text-gray-500">No schedule available.</div>;
 
   const validShows = schedule.filter(show =>
-    show.title.toLowerCase().includes('studio') &&
-    show.start && show.end
+    show.title.toLowerCase().includes('studio') && show.start && show.end
   );
 
   const uniqueMap = new Map();
   validShows.forEach(show => {
     const key = `${show.title}|${show.start}`;
-    if (!uniqueMap.has(key)) {
-      uniqueMap.set(key, show);
-    }
+    if (!uniqueMap.has(key)) uniqueMap.set(key, show);
   });
 
   const shows = Array.from(uniqueMap.values());
@@ -75,64 +70,65 @@ export default function NowNext() {
     .sort((a, b) => DateTime.fromISO(b.start).ts - DateTime.fromISO(a.start).ts)
     .slice(0, 3);
 
+  const renderTitleRow = (title) => {
+    const parts = title.replace(/^REQ-\d+\s*-\s*/, '').trim().split(' - ');
+    return (
+      <div className="flex justify-between items-center bg-white p-2 rounded-xl text-xl font-semibold">
+        <span className="flex-1 text-left truncate">{parts[0]}</span>
+        <span className="w-21 text-center">{parts[1]}</span>
+        <span className="w-20 text-right"> {parts[2]}</span>
+      </div>
+    );
+  };
+
   return (
-    <div className="p-4 rounded-xl shadow  mb-4">
-         <div className="text-sm text-gray-700 mb-4">🗓️ {currentDate}</div>
+    <div className="w-full px-4 mx-auto">
+      <div className="flex w-full justify-between items-center mb-6 text-lg font-mono tracking-wide">
+        <div>🗓️ {currentDate}</div>
+        <div className="text-right">⏱️ {formattedNow}</div>
+      </div>
 
-      <div className="text-sm font-bold text-gray-700 mb-4">🗓️ {formattedNow}</div>
-
-      <div className="bg-red-100 rounded-2xl p-1 mb-2">
-        <h2 className="text-lg bg-red-200 p-2 rounded-2xl font-bold mb-2">🎬 Now Airing</h2>
-        {current.length > 0 ? (
-          current.map((show, index) => (
-            <div key={index} className="mb-2">
-              <p className="text-xl bg-gray-50 rounded-xl p-1 font-semibold">
-                {show.title.replace(/^REQ-\d+\s*-\s*/, '').trim()}
-              </p>
-              <p className="text-sm font-bold mt-1 text-gray-800">
+      <div className="grid-cols-1 space-y-2 min-w-96 px-4">
+        {/* Now Airing */}
+        <div className="bg-red-100 rounded-2xl p-4 shadow">
+          <h2 className="text-2xl font-bold text-red-900 mb-4">🎬 Now Airing</h2>
+          {current.length > 0 ? current.map((show, index) => (
+            <div key={index} className="mb-4">
+              {renderTitleRow(show.title)}
+              <p className="text-sm mt-1 font-bold text-gray-700">
                 {DateTime.fromISO(show.start).toLocaleString(DateTime.TIME_SIMPLE)} –{' '}
                 {DateTime.fromISO(show.end).toLocaleString(DateTime.TIME_SIMPLE)}
               </p>
             </div>
-          ))
-        ) : (
-          <p className="text-gray-500">No show airing right now.</p>
-        )}
-      </div>
+          )) : <p className="text-gray-500">No show airing right now.</p>}
+        </div>
 
-      <div className="bg-blue-100 rounded-2xl p-1 mb-2">
-        <h2 className="text-lg font-bold bg-blue-200 rounded-2xl mt-4 p-1 mb-2">📺 Upcoming Shows</h2>
-        {upcoming.length > 0 ? (
-          upcoming.map((show, index) => (
-            <div key={index} className="mb-2">
-              <p className="text-xl bg-gray-50 rounded-xl p-1 font-semibold">
-                {show.title.replace(/^REQ-\d+\s*-\s*/, '').trim()}
-              </p>
-              <p className="text-sm font-bold mt-1 text-gray-600">
-                 {DateTime.fromISO(show.start).toLocaleString(DateTime.TIME_SIMPLE)}
+        {/* Upcoming */}
+        <div className="bg-blue-100 rounded-2xl p-4 shadow">
+          <h2 className="text-2xl font-bold text-blue-900 mb-4">📺 Upcoming Shows</h2>
+          {upcoming.length > 0 ? upcoming.map((show, index) => (
+            <div key={index} className="mb-4">
+              {renderTitleRow(show.title)}
+              <p className="text-sm mt-1 font-bold text-gray-700">
+                {DateTime.fromISO(show.start).toLocaleString(DateTime.TIME_SIMPLE)}
               </p>
             </div>
-          ))
-        ) : (
-          <p className="text-gray-500">No upcoming shows.</p>
-        )}
-      </div>
+          )) : <p className="text-gray-500">No upcoming shows.</p>}
+        </div>
 
-      <h2 className="text-lg font-bold p-1 rounded-2xl bg-gray-100 mb-2">📼 Last Aired Shows</h2>
-      {lastAired.length > 0 ? (
-        lastAired.map((show, index) => (
-          <div key={index} className="mb-2 p-1 m-1 bg-gray-100 ">
-            <p className="text-xl bg-gray-50 rounded-xl p-1 font-semibold">
-              {show.title.replace(/^REQ-\d+\s*-\s*/, '').trim()}
-            </p>
-            <p className="text-sm text-gray-600">
-              Started at {DateTime.fromISO(show.start).toLocaleString(DateTime.TIME_SIMPLE)}
-            </p>
-          </div>
-        ))
-      ) : (
-        <p className="text-gray-500">No past shows found.</p>
-      )}
+        {/* Last Aired */}
+        <div className="bg-gray-100 rounded-2xl p-4 shadow">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">📼 Last Aired Shows</h2>
+          {lastAired.length > 0 ? lastAired.map((show, index) => (
+            <div key={index} className="mb-4">
+              {renderTitleRow(show.title)}
+              <p className="text-sm mt-1 font-bold text-gray-700">
+                Started at {DateTime.fromISO(show.start).toLocaleString(DateTime.TIME_SIMPLE)}
+              </p>
+            </div>
+          )) : <p className="text-gray-500">No past shows found.</p>}
+        </div>
+      </div>
     </div>
   );
 }

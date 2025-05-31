@@ -4,7 +4,7 @@ import SpecialsToday from './components/SpecialsToday';
 
 function App() {
   return (
-    <div className="max-w-xl mx-auto mt-10">
+    <div className=" mx-auto mt-5">
       <ScheduleContainer />
       {/* <SpecialsToday /> */}
    
