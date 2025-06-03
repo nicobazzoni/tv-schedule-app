@@ -12,7 +12,7 @@ export default function NowNext() {
 
   const fetchSchedule = async () => {
     try {
-      const res = await fetch('https://us-central1-tv-schedule-app-nico.cloudfunctions.net/receiveSchedule');
+      const res = await fetch('https://us-central1-tv-schedule-app-nico.cloudfunctions.net/getSchedule');
       if (!res.ok) throw new Error('Failed to fetch schedule');
       const data = await res.json();
       setSchedule(data);
@@ -25,12 +25,30 @@ export default function NowNext() {
     }
   };
 
+  const triggerScrape = async () => {
+    try {
+      const res = await fetch('https://us-central1-tv-schedule-app-nico.cloudfunctions.net/triggerScrape', {
+        method: 'POST',
+      });
+      const text = await res.text();
+      console.log('Triggered scrape:', text);
+    } catch (err) {
+      console.error('Scrape trigger failed:', err);
+    }
+  };
+
   useEffect(() => {
-    fetchSchedule();
-    const scheduleInterval = setInterval(fetchSchedule, 300000); // 5 min
+    // Trigger scrape and then fetch schedule
+    (async () => {
+      await triggerScrape();
+      // Slight delay in case backend needs time to write to Firestore
+      setTimeout(fetchSchedule, 2000);
+    })();
+
+    const scheduleInterval = setInterval(fetchSchedule, 300000); // every 5 minutes
     const timeInterval = setInterval(() => {
       setNow(DateTime.local().setZone('America/New_York'));
-    }, 1000); // update every second
+    }, 1000); // every second
 
     return () => {
       clearInterval(scheduleInterval);
@@ -43,7 +61,7 @@ export default function NowNext() {
   if (!Array.isArray(schedule)) return <div className="p-6 text-gray-500">No schedule available.</div>;
 
   const validShows = schedule.filter(show =>
-    show.title.toLowerCase().includes('studio') && show.start && show.end
+    show.title?.toLowerCase().includes('studio') && show.start && show.end
   );
 
   const uniqueMap = new Map();
@@ -75,8 +93,8 @@ export default function NowNext() {
     return (
       <div className="flex justify-between items-center bg-white p-2 rounded-xl text-xl font-semibold">
         <span className="flex-1 text-left truncate">{parts[0]}</span>
-        <span className="w-21 text-center">{parts[1]}</span>
-        <span className="w-20 text-right"> {parts[2]}</span>
+        <span className="w-21 text-center">{parts[1] || ''}</span>
+        <span className="w-20 text-right">{parts[2] || ''}</span>
       </div>
     );
   };
