@@ -108,7 +108,7 @@ export default function NowNext() {
 
       <div className="grid-cols-1 space-y-2 min-w-96 px-4">
         {/* Now Airing */}
-        <div className="bg-red-100 rounded-2xl p-4 shadow">
+        <div className="bg-red-400 rounded-2xl p-4 shadow">
           <h2 className="text-2xl font-bold text-red-900 mb-4">🎬 Now Airing</h2>
           {current.length > 0 ? current.map((show, index) => (
             <div key={index} className="mb-4">
