@@ -1,5 +1,6 @@
 const { onRequest } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
+const cors = require('cors')({ origin: true });
 const cheerio = require('cheerio');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
@@ -7,7 +8,7 @@ const { getFirestore } = require('firebase-admin/firestore');
 initializeApp();
 const db = getFirestore();
 
-// Helper: CORS handler
+// === Helper: CORS wrapper ===
 function withCORS(handler) {
   return (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
@@ -20,7 +21,7 @@ function withCORS(handler) {
   };
 }
 
-// === HTTP Function: Get schedule from Firestore ===
+// === GET schedule from Firestore ===
 exports.getSchedule = onRequest(
   withCORS(async (req, res) => {
     try {
@@ -34,48 +35,56 @@ exports.getSchedule = onRequest(
   })
 );
 
-// === HTTP Function: Manual scrape trigger ===
+// === Manual trigger of scrape ===
 exports.triggerScrape = onRequest(
   withCORS(async (req, res) => {
-    await scrapeAndStore(); // defined below
+    await scrapeAndStore();
     res.status(200).send('Scrape triggered');
   })
 );
 
-// === HTTP Function: Receive and store schedule externally (if used) ===
-exports.receiveSchedule = onRequest(
-  withCORS(async (req, res) => {
+// === External POST receiver (e.g., cloud task or webhook) ===
+exports.receiveSchedule = onRequest((req, res) => {
+  cors(req, res, async () => {
     try {
+      if (req.method !== 'POST') {
+        res.status(405).send('Method Not Allowed');
+        return;
+      }
+
       const events = req.body;
-      if (!Array.isArray(events)) throw new Error('Invalid payload');
+      console.log('🔍 Incoming payload:', JSON.stringify(events));
+
+      if (!Array.isArray(events) || events.length === 0) {
+        console.error('❌ Invalid or empty event payload');
+        res.status(400).send('Invalid payload');
+        return;
+      }
+
       const batch = db.batch();
       const col = db.collection('schedule');
 
-      // Clear previous entries
-      const old = await col.get();
-      old.forEach(doc => batch.delete(doc.ref));
-
-      // Add new entries
       events.forEach(event => {
-        const ref = col.doc();
-        batch.set(ref, event);
+        const doc = col.doc();
+        batch.set(doc, event);
       });
 
       await batch.commit();
-      res.status(200).send('Schedule updated');
+      console.log(`✅ Saved ${events.length} events`);
+      res.status(200).send(`Saved ${events.length} events`);
     } catch (err) {
       console.error('❌ Failed to receive schedule:', err);
-      res.status(500).send('Error receiving schedule');
+      res.status(500).send('Server error');
     }
-  })
-);
+  });
+});
 
-// === Scheduled scrape job ===
-exports.scheduledScrape = onSchedule('every day 03:00', async (event) => {
+// === Scheduled scrape at 3 AM ===
+exports.scheduledScrape = onSchedule('every day 03:00', async () => {
   await scrapeAndStore();
 });
 
-// === Scraper logic (used in both manual and scheduled triggers) ===
+// === Shared scraper logic ===
 async function scrapeAndStore() {
   const today = new Date().toISOString().split('T')[0];
   const TARGET_URL = `https://jira.news.apps.fox/plugins/servlet/embedded-calendar?id=f5e8cadf-69d0-43b1-9e48-f8cae4ffc76c&view=listDay&date=${today}`;
@@ -127,8 +136,6 @@ async function scrapeAndStore() {
   });
 
   const col = db.collection('schedule');
-
-  // Overwrite Firestore with new events
   const batch = db.batch();
   const old = await col.get();
   old.forEach(doc => batch.delete(doc.ref));

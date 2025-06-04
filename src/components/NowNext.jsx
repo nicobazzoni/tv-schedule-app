@@ -10,18 +10,14 @@ export default function NowNext() {
   useEffect(() => {
     const fetchSchedule = async () => {
       try {
-        const res = await fetch('https://us-central1-tv-schedule-app-nico.cloudfunctions.net/getSchedule');
-        if (!res.ok) throw new Error('Failed to fetch schedule');
-        const data = await res.json();
-        setSchedule(data);
-        setError(null);
-      } catch (err) {
-        console.error(err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+        const res = await fetch('https://us-central1-tv-schedule-app-nico.cloudfunctions.net/receiveSchedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(scheduleData), // replace with your data
+        })
+        .then(res => res.text())
+        .then(console.log)
+        .catch(console.error);
 
     fetchSchedule();
     const interval = setInterval(fetchSchedule, 300000); // refresh every 5 minutes
