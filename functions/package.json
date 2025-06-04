@@ -1,31 +1,21 @@
 {
   "name": "functions",
-  "type": "module",
   "description": "Cloud Functions for Firebase",
-  "scripts": {
-    "serve": "firebase emulators:start --only functions",
-    "shell": "firebase functions:shell",
-    "start": "npm run shell",
-    "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
-  },
-  "engines": {
-    "node": "18"
-  },
   "main": "index.js",
-  "dependencies": {
-    "axios": "^1.9.0",
-    "cors": "^2.8.5",
-    "firebase-admin": "^11.11.1",
-    "firebase-functions": "^6.3.2",
-    "ical": "^0.8.0",
-    "luxon": "^3.6.1",
-    "node-fetch": "^2.6.7",
-    "node-ical": "^0.20.1",
-    "puppeteer": "^21.0.0"
+  "engines": {
+    "node": "18",
+    "type": "module"
   },
-  "devDependencies": {
-    "firebase-functions-test": "^3.1.0"
+  "scripts": {
+    "start": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "firebase-admin": "^11.10.1",
+    "firebase-functions": "^4.5.0",
+    "node-fetch": "^2.7.0",
+    "puppeteer": "^21.0.0"
   },
   "private": true
 }

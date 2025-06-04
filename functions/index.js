@@ -1,153 +1,142 @@
-import { onRequest } from 'firebase-functions/v2/https';
-import * as logger from 'firebase-functions/logger';
-import admin from 'firebase-admin';
-import corsLib from 'cors';
-import puppeteer from 'puppeteer';
-import fetch from 'node-fetch';
+const { onRequest } = require('firebase-functions/v2/https');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
+const cheerio = require('cheerio');
+const { initializeApp } = require('firebase-admin/app');
+const { getFirestore } = require('firebase-admin/firestore');
 
-// ✅ Initialize Firebase Admin SDK
-if (!admin.apps.length) {
-  admin.initializeApp();
+initializeApp();
+const db = getFirestore();
+
+// Helper: CORS handler
+function withCORS(handler) {
+  return (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    return handler(req, res);
+  };
 }
 
-// ✅ Setup CORS
-const cors = corsLib({ origin: true });
-
-export const getSchedule = onRequest({ cors: true }, async (req, res) => {
-  try {
-    const snapshot = await admin.firestore().collection('tvSchedule').get();
-    const schedule = snapshot.docs.map(doc => doc.data());
-    res.status(200).json(schedule);
-  } catch (err) {
-    console.error('Failed to fetch schedule:', err);
-    res.status(500).send('Internal server error');
-  }
-});
-// ✅ PUBLIC: Schedule Receiver
-export const receiveSchedule = onRequest((req, res) => {
-  cors(req, res, async () => {
-    if (req.method !== 'POST') {
-      return res.status(405).send('Only POST allowed');
-    }
-
-    const events = req.body;
-
+// === HTTP Function: Get schedule from Firestore ===
+exports.getSchedule = onRequest(
+  withCORS(async (req, res) => {
     try {
-      const batch = admin.firestore().batch();
-      const ref = admin.firestore().collection('tvSchedule');
+      const snapshot = await db.collection('schedule').get();
+      const data = snapshot.docs.map(doc => doc.data());
+      res.status(200).json(data);
+    } catch (err) {
+      console.error('❌ Error fetching schedule:', err);
+      res.status(500).json({ error: 'Failed to fetch schedule' });
+    }
+  })
+);
 
+// === HTTP Function: Manual scrape trigger ===
+exports.triggerScrape = onRequest(
+  withCORS(async (req, res) => {
+    await scrapeAndStore(); // defined below
+    res.status(200).send('Scrape triggered');
+  })
+);
+
+// === HTTP Function: Receive and store schedule externally (if used) ===
+exports.receiveSchedule = onRequest(
+  withCORS(async (req, res) => {
+    try {
+      const events = req.body;
+      if (!Array.isArray(events)) throw new Error('Invalid payload');
+      const batch = db.batch();
+      const col = db.collection('schedule');
+
+      // Clear previous entries
+      const old = await col.get();
+      old.forEach(doc => batch.delete(doc.ref));
+
+      // Add new entries
       events.forEach(event => {
-        const docRef = ref.doc();
-        batch.set(docRef, event);
+        const ref = col.doc();
+        batch.set(ref, event);
       });
 
       await batch.commit();
-
-      // ✅ CORS success response
-      res.set('Access-Control-Allow-Origin', '*'); // Or restrict to 'https://tv-schedule-app.vercel.app'
-      res.status(200).send('Schedule received');
+      res.status(200).send('Schedule updated');
     } catch (err) {
-      logger.error('Firestore write error:', err);
-      res.status(500).send('Failed to store schedule');
+      console.error('❌ Failed to receive schedule:', err);
+      res.status(500).send('Error receiving schedule');
     }
-  });
+  })
+);
+
+// === Scheduled scrape job ===
+exports.scheduledScrape = onSchedule('every day 03:00', async (event) => {
+  await scrapeAndStore();
 });
 
-// ✅ PUBLIC: Scrape and Send
-export const triggerScrape = onRequest(
-  { cors: true, allowAny: true },
-  async (req, res) => {
-    logger.log('🟢 Scrape triggered');
-    if (req.method !== 'POST') {
-      return res.status(405).send('Only POST allowed');
-    }
+// === Scraper logic (used in both manual and scheduled triggers) ===
+async function scrapeAndStore() {
+  const today = new Date().toISOString().split('T')[0];
+  const TARGET_URL = `https://jira.news.apps.fox/plugins/servlet/embedded-calendar?id=f5e8cadf-69d0-43b1-9e48-f8cae4ffc76c&view=listDay&date=${today}`;
 
-    const today = new Date().toISOString().split('T')[0];
-    const TARGET_URL = `https://jira.news.apps.fox/plugins/servlet/embedded-calendar?id=f5e8cadf-69d0-43b1-9e48-f8cae4ffc76c&view=listDay&date=${today}`;
-    const POST_URL = 'https://receiveschedule-6t5x7ecxxq-uc.a.run.app';
+  const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+  const res = await fetch(TARGET_URL);
+  const html = await res.text();
+  const $ = cheerio.load(html);
 
-    let browser;
-    try {
-      browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      });
+  const events = [];
 
-      const page = await browser.newPage();
-      await page.setUserAgent(
-        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36'
+  $('table.fc-list-table tbody tr').each((i, row) => {
+    const timeCell = $(row).find('.fc-list-event-time').text().trim();
+    const titleCell = $(row).find('.fc-list-event-title').text().trim();
+
+    if (!timeCell || !titleCell) return;
+
+    const [startStr, endStr] = timeCell.split(' - ').map(s => s.trim());
+    const title = titleCell.replace(/^REQ-\d+\s*-\s*/, '');
+
+    const parseTime = (t) => {
+      const match = t.match(/(\d{1,2}):(\d{2})\s*([ap]m)/i);
+      if (!match) return null;
+      let [_, hour, min, period] = match;
+      hour = parseInt(hour, 10);
+      if (period.toLowerCase() === 'pm' && hour !== 12) hour += 12;
+      if (period.toLowerCase() === 'am' && hour === 12) hour = 0;
+      return `${today}T${hour.toString().padStart(2, '0')}:${min}:00`;
+    };
+
+    const start = parseTime(startStr);
+    const end = parseTime(endStr);
+
+    const isValidShow = (t) => {
+      const lower = t.toLowerCase();
+      return (
+        lower.includes('studio') &&
+        !lower.includes('maintenance') &&
+        !lower.includes('standby') &&
+        !lower.includes('demolished') &&
+        !lower.includes('no control room') &&
+        !lower.includes('out of commission')
       );
+    };
 
-      logger.log('🌐 Navigating to', TARGET_URL);
-      await page.goto(TARGET_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-      await page.waitForSelector('table.fc-list-table, .fc-no-events', { timeout: 60000 });
-
-      const events = await page.evaluate((todayStr) => {
-        const rows = Array.from(document.querySelectorAll('table.fc-list-table tbody tr'));
-        const data = [];
-
-        for (const row of rows) {
-          const timeCell = row.querySelector('.fc-list-event-time');
-          const titleCell = row.querySelector('.fc-list-event-title');
-          if (!timeCell || !titleCell) continue;
-
-          const timeText = timeCell.innerText.trim();
-          const [startStr, endStr] = timeText.split(' - ').map(s => s.trim());
-          let title = titleCell.innerText.trim();
-          title = title.replace(/^REQ-\d+\s*-\s*/, '');
-
-          const parseTime = (t) => {
-            const match = t.match(/(\d{1,2}):(\d{2})\s*([ap]m)/i);
-            if (!match) return null;
-            let [_, hour, min, period] = match;
-            hour = parseInt(hour, 10);
-            if (period.toLowerCase() === 'pm' && hour !== 12) hour += 12;
-            if (period.toLowerCase() === 'am' && hour === 12) hour = 0;
-            return `${todayStr}T${hour.toString().padStart(2, '0')}:${min}:00`;
-          };
-
-          const start = parseTime(startStr);
-          const end = parseTime(endStr);
-
-          const isValidShow = (title) => {
-            const t = title.toLowerCase();
-            return (
-              t.includes('studio') &&
-              !t.includes('maintenance') &&
-              !t.includes('standby') &&
-              !t.includes('demolished') &&
-              !t.includes('no control room') &&
-              !t.includes('out of commission')
-            );
-          };
-
-          if (start && end && isValidShow(title)) {
-            data.push({ title, start, end });
-          }
-        }
-
-        return data;
-      }, today);
-
-      logger.log(`📦 Extracted ${events.length} events`);
-
-      const response = await fetch(POST_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(events),
-      });
-
-      const text = await response.text();
-      logger.log('📬 POST response', response.status, text);
-
-      if (!response.ok) throw new Error(`POST failed with ${response.status}`);
-
-      res.status(200).send('Scrape complete');
-    } catch (err) {
-      logger.error('❌ Scrape error:', err);
-      res.status(500).send('Scrape error');
-    } finally {
-      if (browser) await browser.close();
+    if (start && end && isValidShow(title)) {
+      events.push({ title, start, end });
     }
-  }
-);
+  });
+
+  const col = db.collection('schedule');
+
+  // Overwrite Firestore with new events
+  const batch = db.batch();
+  const old = await col.get();
+  old.forEach(doc => batch.delete(doc.ref));
+  events.forEach(event => {
+    const ref = col.doc();
+    batch.set(ref, event);
+  });
+
+  await batch.commit();
+  console.log(`✅ Scraped and saved ${events.length} events`);
+}
