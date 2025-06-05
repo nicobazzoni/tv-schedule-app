@@ -50,6 +50,7 @@ import { DateTime } from 'luxon';
           !t.toLowerCase().includes('maintenance') &&
           !t.toLowerCase().includes('standby') &&
           !t.toLowerCase().includes('demolished') &&
+          !t.toLowerCase().includes('No Studio') &&
           !t.toLowerCase().includes('no control room') &&
           !t.toLowerCase().includes('out of commission');
 
@@ -69,10 +70,14 @@ import { DateTime } from 'luxon';
       body: JSON.stringify(events),
     });
 
-    if (!res.ok) throw new Error(`POST failed: ${res.status}`);
+    if (!res.ok) {
+      const msg = await res.text();
+      throw new Error(`POST failed: ${res.status} – ${msg}`);
+    }
+
     console.log('📤 Schedule pushed to Firestore');
   } catch (err) {
-    console.error('🔥 Error during scraping:', err);
+    console.error('🔥 Error during scraping:', err.message);
   } finally {
     await browser.close();
   }

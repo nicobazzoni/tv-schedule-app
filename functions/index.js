@@ -1,149 +1,123 @@
-const { onRequest } = require('firebase-functions/v2/https');
-const { onSchedule } = require('firebase-functions/v2/scheduler');
-const cors = require('cors')({ origin: true });
-const cheerio = require('cheerio');
-const { initializeApp } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
+import functions from 'firebase-functions';
+import admin from 'firebase-admin';
+import puppeteer from 'puppeteer';
+import { DateTime } from 'luxon';
+import cors from 'cors';
 
-initializeApp();
-const db = getFirestore();
+admin.initializeApp();
+const db = admin.firestore();
+const corsHandler = cors({ origin: true });
 
-// === Helper: CORS wrapper ===
-function withCORS(handler) {
-  return (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-    if (req.method === 'OPTIONS') {
-      res.status(204).send('');
-      return;
-    }
-    return handler(req, res);
-  };
-}
-
-// === GET schedule from Firestore ===
-exports.getSchedule = onRequest(
-  withCORS(async (req, res) => {
+export const scrapeSchedule = functions.https.onRequest((req, res) => {
+  corsHandler(req, res, async () => {
     try {
-      const snapshot = await db.collection('schedule').get();
-      const data = snapshot.docs.map(doc => doc.data());
-      res.status(200).json(data);
-    } catch (err) {
-      console.error('❌ Error fetching schedule:', err);
-      res.status(500).json({ error: 'Failed to fetch schedule' });
-    }
-  })
-);
+      const today = DateTime.now().setZone('America/New_York').toFormat('yyyy-MM-dd');
+      const TARGET_URL = `https://jira.news.apps.fox/plugins/servlet/embedded-calendar?id=f5e8cadf-69d0-43b1-9e48-f8cae4ffc76c&view=listDay&date=${today}`;
 
-// === Manual trigger of scrape ===
-exports.triggerScrape = onRequest(
-  withCORS(async (req, res) => {
-    await scrapeAndStore();
-    res.status(200).send('Scrape triggered');
-  })
-);
-
-// === External POST receiver (e.g., cloud task or webhook) ===
-exports.receiveSchedule = onRequest((req, res) => {
-  cors(req, res, async () => {
-    try {
-      if (req.method !== 'POST') {
-        res.status(405).send('Method Not Allowed');
-        return;
-      }
-
-      const events = req.body;
-      console.log('🔍 Incoming payload:', JSON.stringify(events));
-
-      if (!Array.isArray(events) || events.length === 0) {
-        console.error('❌ Invalid or empty event payload');
-        res.status(400).send('Invalid payload');
-        return;
-      }
-
-      const batch = db.batch();
-      const col = db.collection('schedule');
-
-      events.forEach(event => {
-        const doc = col.doc();
-        batch.set(doc, event);
+      const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
       });
 
-      await batch.commit();
-      console.log(`✅ Saved ${events.length} events`);
-      res.status(200).send(`Saved ${events.length} events`);
+      const page = await browser.newPage();
+      await page.goto(TARGET_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await page.waitForSelector('table.fc-list-table, .fc-no-events', { timeout: 60000 });
+
+      const events = await page.evaluate((todayStr) => {
+        const rows = Array.from(document.querySelectorAll('table.fc-list-table tbody tr'));
+        const data = [];
+
+        for (const row of rows) {
+          const timeCell = row.querySelector('.fc-list-event-time');
+          const titleCell = row.querySelector('.fc-list-event-title');
+          if (!timeCell || !titleCell) continue;
+
+          const [startStr, endStr] = timeCell.innerText.trim().split(' - ');
+          let title = titleCell.innerText.trim().replace(/^REQ-\d+\s*-\s*/, '');
+
+          const parseTime = (t) => {
+            const match = t.match(/(\d{1,2}):(\d{2})\s*([ap]m)/i);
+            if (!match) return null;
+            let [_, hour, min, period] = match;
+            hour = parseInt(hour, 10);
+            if (period.toLowerCase() === 'pm' && hour !== 12) hour += 12;
+            if (period.toLowerCase() === 'am' && hour === 12) hour = 0;
+            return `${todayStr}T${hour.toString().padStart(2, '0')}:${min}:00`;
+          };
+
+          const start = parseTime(startStr);
+          const end = parseTime(endStr);
+
+          const isValid = (t) =>
+            t.toLowerCase().includes('studio') &&
+            !t.toLowerCase().includes('maintenance') &&
+            !t.toLowerCase().includes('standby') &&
+            !t.toLowerCase().includes('demolished') &&
+            !t.toLowerCase().includes('no control room') &&
+            !t.toLowerCase().includes('out of commission');
+
+          if (start && end && isValid(title)) {
+            data.push({ title, start, end });
+          }
+        }
+
+        return data;
+      }, today);
+
+      await browser.close();
+
+      // Save to Firestore
+      await db.collection('schedule').doc(today).set({ events });
+
+      return res.status(200).json(events);
     } catch (err) {
-      console.error('❌ Failed to receive schedule:', err);
-      res.status(500).send('Server error');
+      console.error('Scrape error:', err);
+      return res.status(500).json({ error: 'Failed to scrape schedule' });
     }
   });
 });
 
-// === Scheduled scrape at 3 AM ===
-exports.scheduledScrape = onSchedule('every day 03:00', async () => {
-  await scrapeAndStore();
+// 🔁 Cloud Scheduler hits this to trigger scrape
+export const triggerScrape = functions.https.onRequest(async (req, res) => {
+  const fetch = await import('node-fetch').then(mod => mod.default);
+  try {
+    const scrapeRes = await fetch('https://us-central1-tv-schedule-app-nico.cloudfunctions.net/scrapeSchedule');
+    const data = await scrapeRes.json();
+    return res.status(200).json({ ok: true, data });
+  } catch (err) {
+    console.error('Trigger scrape failed:', err);
+    return res.status(500).json({ error: 'Failed to trigger scrape' });
+  }
 });
 
-// === Shared scraper logic ===
-async function scrapeAndStore() {
-  const today = new Date().toISOString().split('T')[0];
-  const TARGET_URL = `https://jira.news.apps.fox/plugins/servlet/embedded-calendar?id=f5e8cadf-69d0-43b1-9e48-f8cae4ffc76c&view=listDay&date=${today}`;
+// 📡 Frontend fetches from here
 
-  const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
-  const res = await fetch(TARGET_URL);
-  const html = await res.text();
-  const $ = cheerio.load(html);
+export const receiveSchedule = functions.https.onRequest((req, res) => {
+  corsHandler(req, res, async () => {
+    try {
+      const today = DateTime.now().setZone('America/New_York').toFormat('yyyy-MM-dd');
 
-  const events = [];
+      if (req.method === 'POST') {
+        // Handle POST from scraper
+        const events = req.body;
+        await db.collection('schedule').doc(today).set({ events });
+        return res.status(200).json({ success: true });
+      }
 
-  $('table.fc-list-table tbody tr').each((i, row) => {
-    const timeCell = $(row).find('.fc-list-event-time').text().trim();
-    const titleCell = $(row).find('.fc-list-event-title').text().trim();
+      if (req.method === 'GET') {
+        // Handle GET from frontend
+        const doc = await db.collection('schedule').doc(today).get();
+        if (!doc.exists) {
+          return res.status(404).json({ error: 'No schedule found' });
+        }
+        return res.status(200).json(doc.data().events || []);
+      }
 
-    if (!timeCell || !titleCell) return;
-
-    const [startStr, endStr] = timeCell.split(' - ').map(s => s.trim());
-    const title = titleCell.replace(/^REQ-\d+\s*-\s*/, '');
-
-    const parseTime = (t) => {
-      const match = t.match(/(\d{1,2}):(\d{2})\s*([ap]m)/i);
-      if (!match) return null;
-      let [_, hour, min, period] = match;
-      hour = parseInt(hour, 10);
-      if (period.toLowerCase() === 'pm' && hour !== 12) hour += 12;
-      if (period.toLowerCase() === 'am' && hour === 12) hour = 0;
-      return `${today}T${hour.toString().padStart(2, '0')}:${min}:00`;
-    };
-
-    const start = parseTime(startStr);
-    const end = parseTime(endStr);
-
-    const isValidShow = (t) => {
-      const lower = t.toLowerCase();
-      return (
-        lower.includes('studio') &&
-        !lower.includes('maintenance') &&
-        !lower.includes('standby') &&
-        !lower.includes('demolished') &&
-        !lower.includes('no control room') &&
-        !lower.includes('out of commission')
-      );
-    };
-
-    if (start && end && isValidShow(title)) {
-      events.push({ title, start, end });
+      // Method not allowed
+      return res.status(405).send('Method Not Allowed');
+    } catch (err) {
+      console.error('receiveSchedule error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
     }
   });
-
-  const col = db.collection('schedule');
-  const batch = db.batch();
-  const old = await col.get();
-  old.forEach(doc => batch.delete(doc.ref));
-  events.forEach(event => {
-    const ref = col.doc();
-    batch.set(ref, event);
-  });
-
-  await batch.commit();
-  console.log(`✅ Scraped and saved ${events.length} events`);
-}
+});
