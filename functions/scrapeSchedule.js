@@ -1,12 +1,11 @@
-// scrape.js — Run via `node scrape.js` or cron
+// functions/scrapeSchedule.js
 import puppeteer from 'puppeteer';
 import fetch from 'node-fetch';
 import { DateTime } from 'luxon';
 
-(async () => {
+export const scrapeSchedule = async (req, res) => {
   const today = DateTime.now().setZone('America/New_York').toFormat('yyyy-MM-dd');
   const TARGET_URL = `https://jira.news.apps.fox/plugins/servlet/embedded-calendar?id=f5e8cadf-69d0-43b1-9e48-f8cae4ffc76c&view=listDay&date=${today}`;
-  console.log('🧭 Scraping URL:', TARGET_URL);
   const POST_URL = 'https://us-central1-tv-schedule-app-nico.cloudfunctions.net/receiveSchedule';
 
   console.log(`🔍 Scraping schedule for ${today}`);
@@ -48,11 +47,9 @@ import { DateTime } from 'luxon';
 
         const isValid = (t) =>
           t.toLowerCase().includes('studio') &&
-       
           !t.toLowerCase().includes('maintenance') &&
           !t.toLowerCase().includes('standby') &&
           !t.toLowerCase().includes('demolished') &&
-          
           !t.toLowerCase().includes('no control room') &&
           !t.toLowerCase().includes('out of commission');
 
@@ -66,21 +63,23 @@ import { DateTime } from 'luxon';
 
     console.log(`✅ Scraped ${events.length} events`);
 
-    const res = await fetch(POST_URL, {
+    const response = await fetch(POST_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(events),
     });
 
-    if (!res.ok) {
-      const msg = await res.text();
-      throw new Error(`POST failed: ${res.status} – ${msg}`);
+    if (!response.ok) {
+      const msg = await response.text();
+      throw new Error(`POST failed: ${response.status} – ${msg}`);
     }
 
     console.log('📤 Schedule pushed to Firestore');
+    res.status(200).send('Scrape completed');
   } catch (err) {
     console.error('🔥 Error during scraping:', err.message);
+    res.status(500).send(err.message);
   } finally {
     await browser.close();
   }
-})();
+};

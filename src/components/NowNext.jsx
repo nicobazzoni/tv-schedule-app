@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import React, { useEffect, useState } from 'react';
+import '../index.css'
 
 export default function NowNext() {
   const [schedule, setSchedule] = useState([]);
@@ -70,45 +71,54 @@ useEffect(() => {
   if (error) return <p className="text-red-600 text-lg">Error: {error}</p>;
 
   return (
-<div className="px-4 py-6 space-y-6 w-full max-w-4xl mx-auto flex border-blue-800 border-22 flex-col items-center text-center">
-<div className="text-white bg-blue-700 p-2 mb-4">
-      <h1 className="text-sm text-center font-bold">{currentTime.toFormat('cccc, LLLL d, yyyy')}</h1>
-      <p className="text-lg">{currentTime.toFormat('hh:mm:ss a')}</p>
-    </div>
-      <div className='bg-red-600 p-2 mb-3 shadow-md  shadow-black '>
-        <h2 className="text-2xl font-semibold text-white mb-2"> Now Playing</h2>
-        {nowAiring.length > 0 ? (
-          <div className="grid gap-2">
-            {nowAiring.map((item, i) => (
-              <div key={i} className="bg-white shadow-xl rounded-xl p-4 border border-gray-200">
-                <p className="text-lg font-medium">{item.title}</p>
-                <p className="text-sm text-gray-600">
-                  {item.start.toFormat('h:mm a')} - {item.end.toFormat('h:mm a')}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500">No show airing right now.</p>
-        )}
+    <div className="h-screen w-full mb-3  mx-auto px-4 py-4 flex flex-col text-center text-white">
+      <div className="bg-blue-700 p-2 mb-2">
+        <h1 className="text-sm font-bold">{currentTime.toFormat('cccc, LLLL d, yyyy')}</h1>
+        <p className="text-lg">{currentTime.toFormat('hh:mm:ss a')}</p>
       </div>
-
-      <div className='bg-whitesmoke'>
-        <h2 className="text-md font-semibold text-black mb-4 mt-3"> Up Next</h2>
-        {upNext.length > 0 ? (
-          <div className="grid gap-2 bg-blue-700 shadow-md shadow-black p-1">
-            {upNext.map((item, i) => (
-              <div key={i} className=" bg-white rounded-xl p-4 border   border-gray-200">
-                <p className="text-lg font-medium">{item.title}</p>
-                <p className="text-sm text-gray-600">
-                  {item.start.toFormat('h:mm a')} - {item.end.toFormat('h:mm a')}
+  
+      {/* Now Playing */}
+      <div className="flex-1 flex flex-col rounded-xl bg-red-600 p-1">
+        <h2 className="text-xl font-bold mb-4">Now Playing</h2>
+        <div className="flex-1 flex flex-col w-full gap-2 justify-around">
+          {nowAiring.length > 0 ? (
+            nowAiring.map((item, i) => (
+              <div
+                key={i}
+                className="bg-white text-black shadow-lg  rounded-2xl px-10 py-10 border border-gray-300 w-full "
+              >
+                <p className="text-5xl font-semibold">{item.title}</p>
+                <p className="text-xl text-gray-600 mt-1">
+                  {item.start.toFormat('h:mm a')} – {item.end.toFormat('h:mm a')}
                 </p>
               </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500">No upcoming show found.</p>
-        )}
+            ))
+          ) : (
+            <p className="text-white">No show airing right now.</p>
+          )}
+        </div>
+      </div>
+  
+      {/* Up Next */}
+      <div className="flex-1 flex flex-col mt-3 bg-blue-700 rounded-xl shadow-md shadow-black p-4 overflow-y-auto">
+        <h2 className="text-3xl font-bold mb-1">Up Next</h2>
+        <div className="flex-1 flex flex-col gap-6 justify-around">
+          {upNext.length > 0 ? (
+            upNext.map((item, i) => (
+              <div
+                key={i}
+                  className="bg-white text-black shadow-lg rounded-2xl px-10 py-10 border border-gray-300 w-full "
+              >
+                <p className="text-5xl font-semibold">{item.title}</p>
+                <p className="text-xl text-gray-600 mt-1">
+                  {item.start.toFormat('h:mm a')} – {item.end.toFormat('h:mm a')}
+                </p>
+              </div>
+            ))
+          ) : (
+            <p className="text-white">No upcoming shows.</p>
+          )}
+        </div>
       </div>
     </div>
   );
