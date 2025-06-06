@@ -70,12 +70,12 @@ useEffect(() => {
   if (error) return <p className="text-red-600 text-lg">Error: {error}</p>;
 
   return (
-<div className="px-4 py-6 space-y-6 w-full max-w-4xl mx-auto flex border-blue-700 border-22 flex-col items-center text-center">
+<div className="px-4 py-6 space-y-6 w-full max-w-4xl mx-auto flex border-blue-800 border-22 flex-col items-center text-center">
 <div className="text-white bg-blue-700 p-2 mb-4">
       <h1 className="text-sm text-center font-bold">{currentTime.toFormat('cccc, LLLL d, yyyy')}</h1>
       <p className="text-lg">{currentTime.toFormat('hh:mm:ss a')}</p>
     </div>
-      <div className='bg-red-600 p-2 mb-2 '>
+      <div className='bg-red-600 p-2 mb-3 shadow-md  shadow-black '>
         <h2 className="text-2xl font-semibold text-white mb-2"> Now Playing</h2>
         {nowAiring.length > 0 ? (
           <div className="grid gap-2">
@@ -94,11 +94,11 @@ useEffect(() => {
       </div>
 
       <div className='bg-whitesmoke'>
-        <h2 className="text-md font-semibold text-black mb-4"> Up Next</h2>
+        <h2 className="text-md font-semibold text-black mb-4 mt-3"> Up Next</h2>
         {upNext.length > 0 ? (
-          <div className="grid gap-2 bg-blue-500 p-1">
+          <div className="grid gap-2 bg-blue-700 shadow-md shadow-black p-1">
             {upNext.map((item, i) => (
-              <div key={i} className="shadow-xl bg-white rounded-xl p-4 border  border-gray-200">
+              <div key={i} className=" bg-white rounded-xl p-4 border   border-gray-200">
                 <p className="text-lg font-medium">{item.title}</p>
                 <p className="text-sm text-gray-600">
                   {item.start.toFormat('h:mm a')} - {item.end.toFormat('h:mm a')}
