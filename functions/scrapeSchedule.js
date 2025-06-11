@@ -1,85 +1,77 @@
-// functions/scrapeSchedule.js
-import puppeteer from 'puppeteer';
-import fetch from 'node-fetch';
+import puppeteer from 'puppeteer-core';
+import chromium from 'chrome-aws-lambda';
+import admin from 'firebase-admin';
 import { DateTime } from 'luxon';
 
+const TARGET_URL = `https://jira.news.apps.fox/plugins/servlet/embedded-calendar?id=f5e8cadf-69d0-43b1-9e48-f8cae4ffc76c&view=listDay&date=${DateTime.now().setZone('America/New_York').toFormat('yyyy-MM-dd')}`;
+
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+const db = admin.firestore();
+
 export const scrapeSchedule = async (req, res) => {
-  const today = DateTime.now().setZone('America/New_York').toFormat('yyyy-MM-dd');
-  const TARGET_URL = `https://jira.news.apps.fox/plugins/servlet/embedded-calendar?id=f5e8cadf-69d0-43b1-9e48-f8cae4ffc76c&view=listDay&date=${today}`;
-  const POST_URL = 'https://us-central1-tv-schedule-app-nico.cloudfunctions.net/receiveSchedule';
-
-  console.log(`🔍 Scraping schedule for ${today}`);
-
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
-
+  let browser;
   try {
-    const page = await browser.newPage();
-    await page.goto(TARGET_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForSelector('table.fc-list-table, .fc-no-events', { timeout: 60000 });
-
-    const events = await page.evaluate((todayStr) => {
-      const rows = Array.from(document.querySelectorAll('table.fc-list-table tbody tr'));
-      const data = [];
-
-      for (const row of rows) {
-        const timeCell = row.querySelector('.fc-list-event-time');
-        const titleCell = row.querySelector('.fc-list-event-title');
-        if (!timeCell || !titleCell) continue;
-
-        const [startStr, endStr] = timeCell.innerText.trim().split(' - ');
-        let title = titleCell.innerText.trim().replace(/^REQ-\d+\s*-\s*/, '');
-
-        const parseTime = (t) => {
-          const match = t.match(/(\d{1,2}):(\d{2})\s*([ap]m)/i);
-          if (!match) return null;
-          let [_, hour, min, period] = match;
-          hour = parseInt(hour, 10);
-          if (period.toLowerCase() === 'pm' && hour !== 12) hour += 12;
-          if (period.toLowerCase() === 'am' && hour === 12) hour = 0;
-          return `${todayStr}T${hour.toString().padStart(2, '0')}:${min}:00`;
-        };
-
-        const start = parseTime(startStr);
-        const end = parseTime(endStr);
-
-        const isValid = (t) =>
-          t.toLowerCase().includes('studio') &&
-          !t.toLowerCase().includes('maintenance') &&
-          !t.toLowerCase().includes('standby') &&
-          !t.toLowerCase().includes('demolished') &&
-          !t.toLowerCase().includes('no control room') &&
-          !t.toLowerCase().includes('out of commission');
-
-        if (start && end && isValid(title)) {
-          data.push({ title, start, end });
-        }
-      }
-
-      return data;
-    }, today);
-
-    console.log(`✅ Scraped ${events.length} events`);
-
-    const response = await fetch(POST_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(events),
+    browser = await puppeteer.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath,
+      headless: true,
     });
 
-    if (!response.ok) {
-      const msg = await response.text();
-      throw new Error(`POST failed: ${response.status} – ${msg}`);
+    const page = await browser.newPage();
+
+    // Set cookies if needed (optional)
+    // await page.setCookie({
+    //   name: 'YOUR_COOKIE_NAME',
+    //   value: 'YOUR_COOKIE_VALUE',
+    //   domain: 'jira.news.apps.fox',
+    //   path: '/',
+    //   secure: true,
+    //   httpOnly: true
+    // });
+
+    await page.goto(TARGET_URL, { waitUntil: 'networkidle2', timeout: 60000 });
+
+    // Wait for actual content, not just selector, with debugging info on failure
+    try {
+      await page.waitForFunction(() => {
+        return document.querySelectorAll('table.fc-list-table tbody tr').length > 0;
+      }, { timeout: 60000 });
+    } catch (e) {
+      const html = await page.content();
+      console.error('Failed to find table rows. HTML snapshot:', html.slice(0, 2000));
+      await page.screenshot({ path: '/tmp/scrape-error.png', fullPage: true });
+      throw new Error('Timeout waiting for table.fc-list-table tbody tr');
     }
 
-    console.log('📤 Schedule pushed to Firestore');
-    res.status(200).send('Scrape completed');
+    const events = await page.$$eval('table.fc-list-table tbody tr', rows => {
+      return rows.map(row => {
+        const time = row.querySelector('td.fc-list-event-time')?.textContent.trim();
+        const title = row.querySelector('td.fc-list-event-title')?.textContent.trim();
+        return { time, title };
+      });
+    });
+
+    const today = DateTime.now().setZone('America/New_York').toFormat('yyyy-MM-dd');
+    await db.collection('schedule').doc(today).set({ events });
+
+    res.status(200).json({ success: true, count: events.length });
+
   } catch (err) {
-    console.error('🔥 Error during scraping:', err.message);
-    res.status(500).send(err.message);
+    console.error('Scrape failed:', err);
+
+    // Optional: capture HTML if selector fails
+    if (browser) {
+      const pages = await browser.pages();
+      if (pages[0]) {
+        const html = await pages[0].content();
+        console.error('HTML Snapshot:', html.slice(0, 2000)); // limit size
+      }
+    }
+
+    res.status(500).json({ error: 'Scrape failed', details: err.message });
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
   }
 };

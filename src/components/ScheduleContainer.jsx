@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import NowNext from './NowNext';
 import SpecialsToday from './SpecialsToday';
 
-const POST_URL = 'https://us-central1-tv-schedule-app-nico.cloudfunctions.net/receiveSchedule';
+const POST_URL = 'https://calendar-api-198752256224.us-central1.run.app/ics-json'
 
 export default function ScheduleContainer() {
   const [schedule, setSchedule] = useState([]);

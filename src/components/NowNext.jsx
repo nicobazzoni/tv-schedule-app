@@ -24,7 +24,7 @@ useEffect(() => {
   const fetchSchedule = async () => {
     try {
       setLoading(true);
-      const res = await fetch('https://us-central1-tv-schedule-app-nico.cloudfunctions.net/receiveSchedule');
+      const res = await fetch('https://calendar-api-198752256224.us-central1.run.app/ics-json');
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       setSchedule(data);
@@ -44,9 +44,11 @@ useEffect(() => {
 
   useEffect(() => {
     if (!schedule || !schedule.length) return;
-
+  
+    console.log('Fetched schedule:', schedule); // ✅ this was wrong before
+  
     const now = DateTime.local().setZone('America/New_York');
-
+  
     const deduped = schedule.filter(
       (event, index, self) =>
         index === self.findIndex(
@@ -54,21 +56,27 @@ useEffect(() => {
         )
     );
 
-    const parsed = deduped.map(item => ({
-      ...item,
-      start: DateTime.fromISO(item.start, { zone: 'America/New_York' }),
-      end: DateTime.fromISO(item.end, { zone: 'America/New_York' }),
-    }));
-
+    const blacklist = ['maintenance', 'control room', 'req#', 'req-', 'REQTECH-', 'No Studio'];
+const cleaned = deduped.filter(item =>
+  !blacklist.some(word => item.title.toLowerCase().includes(word))
+);
+const parsed = cleaned.map(item => ({
+  ...item,
+  start: DateTime.fromISO(item.start, { zone: 'America/New_York' }),
+  end: DateTime.fromISO(item.end, { zone: 'America/New_York' }),
+}));
+  
     const airing = parsed.filter(item => now >= item.start && now <= item.end);
     const upcoming = parsed
       .filter(item => item.start > now)
       .sort((a, b) => a.start - b.start)
       .slice(0, 3);
-
+  
     setNowAiring(airing);
     setUpNext(upcoming);
   }, [schedule]);
+
+    
 
   if (loading) return <p className="text-white text-lg">Loading...</p>;
   if (error) return <p className="text-red-600 text-lg">Error: {error}</p>;
@@ -97,7 +105,7 @@ useEffect(() => {
                   e.target.onerror = null;
                   e.target.src = getShowImageSrc(""); // fallback to default
                 }}
-                className="w-28 h-28 object-contain rounded-md  flex-shrink-0"
+                className="w-28 h-28 object-contain rounded-md flex-shrink-0"
               />
             
               <div className="flex-1 text-center">

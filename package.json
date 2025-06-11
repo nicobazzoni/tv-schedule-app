@@ -13,6 +13,8 @@
     "@tailwindcss/vite": "^4.1.8",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
+    "express": "^5.1.0",
+    "ical": "^0.8.0",
     "luxon": "^3.6.1",
     "node-fetch": "^3.3.2",
     "puppeteer": "^24.9.0",
