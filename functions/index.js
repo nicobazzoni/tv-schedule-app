@@ -1,35 +1,38 @@
-import express from 'express';
-import fs from 'fs';
-import ical from 'ical';
+import * as functions from 'firebase-functions';
+import admin from 'firebase-admin';
 import cors from 'cors';
 
-const app = express();
-const PORT = process.env.PORT || 8080;
+admin.initializeApp();
+const db = admin.firestore();
+const corsHandler = cors({ origin: true });
 
-app.use(cors()); // allow frontend access
+export const receiveSchedule = functions.https.onRequest((req, res) => {
+  corsHandler(req, res, async () => {
+    const todayKey = new Date().toLocaleDateString('en-CA', {
+      timeZone: 'America/New_York'
+    }); // yyyy-MM-dd
 
-app.get('/', (req, res) => {
-  try {
-    const data = fs.readFileSync('./calendar.ics', 'utf-8');
-    const events = ical.parseICS(data);
+    if (req.method === 'POST') {
+      const events = req.body;
+      if (!Array.isArray(events)) {
+        return res.status(400).json({ error: 'Invalid format — expected an array of events.' });
+      }
 
-    const formatted = Object.values(events)
-      .filter(e => e.type === 'VEVENT')
-      .map(e => ({
-        title: e.summary,
-        start: e.start,
-        end: e.end,
-        location: e.location || '',
-        description: e.description || ''
-      }));
+      await db.collection('schedule').doc(todayKey).set({ events });
+      return res.status(200).json({ success: true, count: events.length });
+    }
 
-    res.json(formatted);
-  } catch (err) {
-    console.error('Failed to read .ics:', err);
-    res.status(500).json({ error: 'Failed to parse calendar file' });
-  }
-});
+    if (req.method === 'GET') {
+      const date = req.query.date || todayKey;
+      const doc = await db.collection('schedule').doc(date).get();
 
-app.listen(PORT, () => {
-  console.log(`📅 Calendar API running on port ${PORT}`);
+      if (!doc.exists) {
+        return res.status(404).json({ error: `No schedule found for ${date}` });
+      }
+
+      return res.status(200).json(doc.data());
+    }
+
+    return res.status(405).json({ error: 'Method not allowed' });
+  });
 });

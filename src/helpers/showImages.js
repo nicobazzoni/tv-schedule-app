@@ -13,6 +13,7 @@ import bigmoney from '../assets/bigmoney.jpg'
 import an from '../assets/americasnewsroom.jpg'
 import foxnation from '../assets/foxnation.png'
 import bigweekend from '../assets/bigweekend.webp'
+import hannity from '../assets/hannity.jpeg'
 
 
 
@@ -33,6 +34,7 @@ const showImageList = [
   { keyword: 'americasnewsroom', image: an },
   { keyword: 'bigweekend', image: bigweekend },
   { keyword: 'foxnation', image: foxnation },
+  { keyword: 'hannity', image: hannity },
 
 ];
 

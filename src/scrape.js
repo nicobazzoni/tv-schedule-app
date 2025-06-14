@@ -1,86 +1,66 @@
-// scrape.js — Run via `node scrape.js` or cron
-import puppeteer from 'puppeteer';
+// scrape.js
 import fetch from 'node-fetch';
 import { DateTime } from 'luxon';
+import 'dotenv/config'
+
+const JIRA_API = 'https://jira.news.apps.fox/rest/api/2/search?jql=filter%3D22719&fields=customfield_18703,customfield_18822,customfield_17902,customfield_18752,customfield_16811';
+const POST_URL = 'https://us-central1-tv-schedule-app-nico.cloudfunctions.net/receiveSchedule';
+const API_TOKEN = process.env.VITE_JIRA_API_TOKEN;
+const email = process.env.VITE_JIRA_EMAIL;
+const authString = Buffer.from(`${email}:${API_TOKEN}`).toString('base64');
 
 (async () => {
-  const today = DateTime.now().setZone('America/New_York').toFormat('yyyy-MM-dd');
-  const TARGET_URL = `https://jira.news.apps.fox/plugins/servlet/embedded-calendar?id=f5e8cadf-69d0-43b1-9e48-f8cae4ffc76c&view=listDay&date=${today}`;
-  console.log('🧭 Scraping URL:', TARGET_URL);
-  const POST_URL = 'https://us-central1-tv-schedule-app-nico.cloudfunctions.net/receiveSchedule';
-
-  console.log(`🔍 Scraping schedule for ${today}`);
-
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
-
   try {
-    const page = await browser.newPage();
-    await page.goto(TARGET_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForSelector('table.fc-list-table, .fc-no-events', { timeout: 60000 });
-
-    const events = await page.evaluate((todayStr) => {
-      const rows = Array.from(document.querySelectorAll('table.fc-list-table tbody tr'));
-      const data = [];
-
-      for (const row of rows) {
-        const timeCell = row.querySelector('.fc-list-event-time');
-        const titleCell = row.querySelector('.fc-list-event-title');
-        if (!timeCell || !titleCell) continue;
-
-        const [startStr, endStr] = timeCell.innerText.trim().split(' - ');
-        let title = titleCell.innerText.trim().replace(/^REQ-\d+\s*-\s*/, '');
-
-        const parseTime = (t) => {
-          const match = t.match(/(\d{1,2}):(\d{2})\s*([ap]m)/i);
-          if (!match) return null;
-          let [_, hour, min, period] = match;
-          hour = parseInt(hour, 10);
-          if (period.toLowerCase() === 'pm' && hour !== 12) hour += 12;
-          if (period.toLowerCase() === 'am' && hour === 12) hour = 0;
-          return `${todayStr}T${hour.toString().padStart(2, '0')}:${min}:00`;
-        };
-
-        const start = parseTime(startStr);
-        const end = parseTime(endStr);
-
-        const isValid = (t) =>
-          t.toLowerCase().includes('studio') &&
-       
-          !t.toLowerCase().includes('maintenance') &&
-          !t.toLowerCase().includes('standby') &&
-          !t.toLowerCase().includes('demolished') &&
-          
-          !t.toLowerCase().includes('no control room') &&
-          !t.toLowerCase().includes('out of commission');
-
-        if (start && end && isValid(title)) {
-          data.push({ title, start, end });
-        }
+    const res = await fetch(JIRA_API, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${API_TOKEN}`,
+        'Accept': 'application/json'
       }
-
-      return data;
-    }, today);
-
-    console.log(`✅ Scraped ${events.length} events`);
-
-    const res = await fetch(POST_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(events),
     });
 
-    if (!res.ok) {
-      const msg = await res.text();
-      throw new Error(`POST failed: ${res.status} – ${msg}`);
+    if (!res.ok) throw new Error(`JIRA API error: ${res.status}`);
+   
+    const json = await res.json();
+console.log("🪵 Raw JSON from JIRA:", JSON.stringify(json, null, 2));
+    
+
+    const items = json.issues.map(issue => {
+      const fields = issue.fields;
+      const show = fields.customfield_18703 || 'Untitled';
+      const start = fields.customfield_18822;
+      const end = fields.customfield_17902;
+      const studio = fields.customfield_18752 || '';
+      const ctrl = fields.customfield_16811 || '';
+
+      // Convert times from UTC to ET
+      const startET = DateTime.fromISO(start, { zone: 'utc' }).setZone('America/New_York').toISO();
+      const endET = DateTime.fromISO(end, { zone: 'utc' }).setZone('America/New_York').toISO();
+
+      return {
+        title: `${studio}  ${show}`,
+        start: startET,
+        end: endET,
+        controlRoom: ctrl
+      };
+    });
+
+    console.log(`✅ Got ${items.length} events from JIRA`);
+
+    const todayKey = DateTime.now().setZone('America/New_York').toFormat('yyyy-MM-dd');
+    const postRes = await fetch(`${POST_URL}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(items)
+    });
+
+    if (!postRes.ok) {
+      const msg = await postRes.text();
+      throw new Error(`POST failed: ${postRes.status} – ${msg}`);
     }
 
-    console.log('📤 Schedule pushed to Firestore');
+    console.log(`📤 Posted ${items.length} events to Firestore for ${todayKey}`);
   } catch (err) {
-    console.error('🔥 Error during scraping:', err.message);
-  } finally {
-    await browser.close();
+    console.error('🔥 Error:', err.message);
   }
 })();

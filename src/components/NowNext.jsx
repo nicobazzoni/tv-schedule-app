@@ -21,20 +21,25 @@ useEffect(() => {
   return () => clearInterval(interval);
 }, []);
 
-  const fetchSchedule = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch('https://calendar-api-198752256224.us-central1.run.app/ics-json');
-      if (!res.ok) throw new Error('Failed to fetch');
-      const data = await res.json();
-      setSchedule(data);
-      setError(null);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchSchedule = async () => {
+  try {
+    setLoading(true);
+    const todayKey = DateTime.local().setZone('America/New_York').toFormat('yyyy-MM-dd');
+
+    const res = await fetch(`https://us-central1-tv-schedule-app-nico.cloudfunctions.net/receiveSchedule?date=${todayKey}`);
+    if (!res.ok) throw new Error('Failed to fetch');
+    
+    const doc = await res.json(); // ← Your Firestore doc
+    const data = doc.events || [];
+    
+    setSchedule(data);
+    setError(null);
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchSchedule();
@@ -56,12 +61,24 @@ useEffect(() => {
         )
     );
 
-    const blacklist = ['maintenance', 'control room', 'req#', 'req-', 'REQTECH-', 'No Studio'];
-const cleaned = deduped.filter(item =>
-  !blacklist.some(word => item.title.toLowerCase().includes(word))
-);
+    const blacklistWords = ['maintenance', 'req-', 'no studio'];
+
+const cleaned = deduped.filter(item => {
+  const title = item.title.toLowerCase();
+  
+  const matchesBlacklist = blacklistWords.some(word => title.includes(word));
+
+
+  if (matchesBlacklist ) {
+    console.log('❌ Filtered out:', title);
+    return false; // exclude
+  }
+
+  return true; // keep
+});
 const parsed = cleaned.map(item => ({
   ...item,
+  title: item.title.replace(/\s*\(network-\d+\)/i, ''), 
   start: DateTime.fromISO(item.start, { zone: 'America/New_York' }),
   end: DateTime.fromISO(item.end, { zone: 'America/New_York' }),
 }));
@@ -110,6 +127,7 @@ const parsed = cleaned.map(item => ({
             
               <div className="flex-1 text-center">
                 <p className="text-4xl font-bold">{item.title}</p>
+                <p className="text-sm text-gray-500 mt-1">{item.controlRoom}</p>
                 <p className="text-xl text-gray-600 mt-2">
                   {item.start.toFormat('h:mm a')} – {item.end.toFormat('h:mm a')}
                 </p>
@@ -133,6 +151,15 @@ const parsed = cleaned.map(item => ({
                   className="bg-white text-black shadow-lg rounded-2xl px-10 py-10 border border-gray-300 w-full "
               >
                 <p className="text-5xl font-semibold">{item.title}</p>
+                <img
+                src={getShowImageSrc(item.title)}
+                alt={item.title}
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = getShowImageSrc(""); // fallback to default
+                }}
+                className="w-28 h-28 object-contain rounded-md flex-shrink-0"
+              />
                 <p className="text-xl text-gray-600 mt-1">
                   {item.start.toFormat('h:mm a')} – {item.end.toFormat('h:mm a')}
                 </p>

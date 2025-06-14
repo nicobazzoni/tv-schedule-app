@@ -5,13 +5,14 @@ export default function SpecialsToday() {
   const [schedule, setSchedule] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+  
   const fetchSchedule = async () => {
     try {
-      const res = await fetch('https://us-central1-tv-schedule-app-nico.cloudfunctions.net/receiveSchedule');
+      const todayKey = DateTime.local().setZone('America/New_York').toFormat('yyyy-MM-dd');
+      const res = await fetch(`https://us-central1-tv-schedule-app-nico.cloudfunctions.net/receiveSchedule?date=${todayKey}`);
       if (!res.ok) throw new Error('Failed to fetch schedule');
       const data = await res.json();
-      setSchedule(data);
+      setSchedule(data.events || []);
       setError(null);
     } catch (err) {
       console.error(err);
