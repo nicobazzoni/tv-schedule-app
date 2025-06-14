@@ -6,7 +6,7 @@ function App() {
   return (
     <div className=" mx-auto mt-5">
       <ScheduleContainer />
-      <SpecialsToday />
+      {/* <SpecialsToday /> */}
    
     </div>
   );

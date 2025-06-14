@@ -25,6 +25,7 @@ const showImageList = [
   { keyword: 'weather', image: weather },
   { keyword: 'thestory', image: thestory },
   { keyword: 'foxandfriends', image: foxandfriends },
+  { keyword: 'foxandfriendsweekend', image: foxandfriends },
   { keyword: 'primetime', image: primetime },
   { keyword: 'maria', image: maria },
   { keyword: 'faulkner', image: faulkner },
