@@ -24,7 +24,7 @@ const showImageList = [
   { keyword: 'thefive', image: thefive },
   { keyword: 'weather', image: weather },
   { keyword: 'thestory', image: thestory },
-  { keyword: 'foxandfriends', image: foxandfriends },
+  { keyword: 'fox&friends', image: foxandfriends },
   { keyword: 'foxandfriendsweekend', image: foxandfriends },
   { keyword: 'primetime', image: primetime },
   { keyword: 'maria', image: maria },

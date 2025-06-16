@@ -61,7 +61,7 @@ const fetchSchedule = async () => {
         )
     );
 
-    const blacklistWords = ['maintenance', 'req-', 'no studio'];
+    const blacklistWords = ['maintenance', 'req-', 'no studio', ];
 
 const cleaned = deduped.filter(item => {
   const title = item.title.toLowerCase();
@@ -122,12 +122,12 @@ className="bg-white text-black shadow-lg min-h-[260px] rounded-2xl p-6 border bo
                   e.target.onerror = null;
                   e.target.src = getShowImageSrc(""); // fallback to default
                 }}
-                className="w-28 h-28 object-contain rounded-md flex-shrink-0"
+                 className="w-42 h-42 rounded-xl object-cover"
               />
             
-            <div className="flex-1 flex flex-col items-center text-center">
-                <p className="text-4xl font-bold">{item.title}</p>
-                <p className="text-xl text-gray-500 mt-1">{item.controlRoom}</p>
+            <div className="flex-1 space-y-3 flex flex-col items-center text-center">
+                <p className="text-6xl font-bold">{item.title}</p>
+                <p className="text-3xl text-gray-500 mt-1">{item.controlRoom}</p>
                 <p className="text-4xl text-gray-600 mt-2">
                   {item.start.toFormat('h:mm a')} – {item.end.toFormat('h:mm a')}
                 </p>
@@ -157,14 +157,14 @@ className="bg-white text-black shadow-lg min-h-[260px] rounded-2xl p-6 border bo
           e.target.onerror = null;
           e.target.src = getShowImageSrc(""); // fallback
         }}
-        className="w-28 h-28 object-contain rounded-md flex-shrink-0"
+        className="w-42 h-42 rounded-xl object-cover"
       />
-     <div className="flex-1 flex flex-col items-center text-center">
-     <p className="text-4xl font-bold">{item.title}</p>
-                <p className="text-xl text-gray-500 mt-1">{item.controlRoom}</p>
+     <div className="flex-1 space-y-2 flex flex-col items-center text-center">
+     <p className="text-6xl font-bold">{item.title}</p>
+                <p className="text-3xl text-gray-500 mt-1">{item.controlRoom}</p>
                 <p className="text-4xl text-gray-600 mt-2">
-          {item.start.toFormat('h:mm a')} – {item.end.toFormat('h:mm a')}
-        </p>
+                  {item.start.toFormat('h:mm a')} – {item.end.toFormat('h:mm a')}
+                </p>
       </div>
     </div>
   ))
