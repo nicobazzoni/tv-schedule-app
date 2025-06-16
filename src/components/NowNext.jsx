@@ -112,30 +112,36 @@ const parsed = cleaned.map(item => ({
           {nowAiring.length > 0 ? (
             nowAiring.map((item, i) => (
               <div
-              key={i}
-className="bg-white text-black shadow-lg min-h-[260px] rounded-2xl p-6 border border-gray-300 w-full flex items-center gap-4"
-            >
-              <img
-                src={getShowImageSrc(item.title)}
-                alt={item.title}
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = getShowImageSrc(""); // fallback to default
-                }}
-                 className="w-42 h-42 rounded-xl object-cover"
-              />
-            
-            <div className="flex-1 space-y-3 flex flex-col items-center text-center">
-            <div className="flex-1 space-y-3 flex flex-col items-center text-center">
-  <p className="text-6xl font-bold">{item.title}</p>
-  <p className="text-3xl text-gray-400">{item.studio.replace(/\s*\(REM-\d+\)/, '').trim()}</p>
-  <p className="text-3xl text-gray-500 mt-1">{item.controlRoom.replace(/\s*\(REM-\d+\)/, '').trim()}</p>
-  <p className="text-4xl text-gray-600 mt-2">
-    {item.start.toFormat('h:mm a')} – {item.end.toFormat('h:mm a')}
-  </p>
+  key={i}
+  className="bg-white text-black shadow-lg min-h-[260px] rounded-2xl p-4 sm:p-6 border border-gray-300 w-full flex flex-col sm:flex-row items-center gap-4"
+>
+  <img
+    src={getShowImageSrc(item.title)}
+    alt={item.title}
+    onError={(e) => {
+      e.target.onerror = null;
+      e.target.src = getShowImageSrc(""); // fallback
+    }}
+    className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 rounded-xl object-cover"
+  />
+
+  <div className="flex-1 space-y-2 sm:space-y-3 flex flex-col items-center text-center">
+    <p className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold break-words">
+      {item.title}
+    </p>
+    <p className="text-lg sm:text-2xl text-gray-400">
+      {item.studio.replace(/\s*\(REM-\d+\)/, '').trim()}
+    </p>
+    <p className="text-base sm:text-xl text-gray-500">
+      {item.controlRoom.replace(/\s*\(REM-\d+\)/, '').trim()}
+    </p>
+    <p className="text-lg sm:text-2xl text-gray-600">
+      {item.start.toFormat('h:mm a')} – {item.end.toFormat('h:mm a')}
+    </p>
+  </div>
 </div>
-              </div>
-            </div>
+              
+          
             ))
           ) : (
             <p className="text-white">No show airing right now.</p>
@@ -150,29 +156,34 @@ className="bg-white text-black shadow-lg min-h-[260px] rounded-2xl p-6 border bo
         {upNext.length > 0 ? (
   upNext.map((item, i) => (
     <div
-      key={i}
-className="bg-white text-black shadow-lg min-h-[260px] rounded-2xl p-6 border border-gray-300 w-full flex items-center gap-4"
-    >
-      <img
-        src={getShowImageSrc(item.title)}
-        alt={item.title}
-        onError={(e) => {
-          e.target.onerror = null;
-          e.target.src = getShowImageSrc(""); // fallback
-        }}
-        className="w-42 h-42 rounded-xl object-cover"
-      />
-     <div className="flex-1 space-y-2 flex flex-col items-center text-center">
-     <div className="flex-1 space-y-3 flex flex-col items-center text-center">
-  <p className="text-6xl font-bold">{item.title}</p>
-  <p className="text-3xl text-gray-400">{item.studio.replace(/\s*\(REM-\d+\)/, '').trim()}</p>
-  <p className="text-3xl text-gray-500 mt-1">{item.controlRoom.replace(/\s*\(REM-\d+\)/, '').trim()}</p>
-  <p className="text-4xl text-gray-600 mt-2">
-    {item.start.toFormat('h:mm a')} – {item.end.toFormat('h:mm a')}
-  </p>
+  key={i}
+  className="bg-white text-black shadow-lg min-h-[260px] rounded-2xl p-4 sm:p-6 border border-gray-300 w-full flex flex-col sm:flex-row items-center gap-4"
+>
+  <img
+    src={getShowImageSrc(item.title)}
+    alt={item.title}
+    onError={(e) => {
+      e.target.onerror = null;
+      e.target.src = getShowImageSrc(""); // fallback
+    }}
+    className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 rounded-xl object-cover"
+  />
+
+  <div className="flex-1 space-y-2 sm:space-y-3 flex flex-col items-center text-center">
+    <p className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold break-words">
+      {item.title}
+    </p>
+    <p className="text-lg sm:text-2xl text-gray-400">
+      {item.studio.replace(/\s*\(REM-\d+\)/, '').trim()}
+    </p>
+    <p className="text-base sm:text-xl text-gray-500">
+      {item.controlRoom.replace(/\s*\(REM-\d+\)/, '').trim()}
+    </p>
+    <p className="text-lg sm:text-2xl text-gray-600">
+      {item.start.toFormat('h:mm a')} – {item.end.toFormat('h:mm a')}
+    </p>
+  </div>
 </div>
-      </div>
-    </div>
   ))
 ) : (
   <p className="text-white">No upcoming shows.</p>
