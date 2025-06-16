@@ -61,7 +61,7 @@ const fetchSchedule = async () => {
         )
     );
 
-    const blacklistWords = ['maintenance', 'req-', 'no studio', ];
+    const blacklistWords = ['maintenance', 'rem#', 'no studio', ];
 
 const cleaned = deduped.filter(item => {
   const title = item.title.toLowerCase();
@@ -126,11 +126,14 @@ className="bg-white text-black shadow-lg min-h-[260px] rounded-2xl p-6 border bo
               />
             
             <div className="flex-1 space-y-3 flex flex-col items-center text-center">
-                <p className="text-6xl font-bold">{item.title}</p>
-                <p className="text-3xl text-gray-500 mt-1">{item.controlRoom}</p>
-                <p className="text-4xl text-gray-600 mt-2">
-                  {item.start.toFormat('h:mm a')} – {item.end.toFormat('h:mm a')}
-                </p>
+            <div className="flex-1 space-y-3 flex flex-col items-center text-center">
+  <p className="text-6xl font-bold">{item.title}</p>
+  <p className="text-3xl text-gray-400">{item.studio.replace(/\s*\(REM-\d+\)/, '').trim()}</p>
+  <p className="text-3xl text-gray-500 mt-1">{item.controlRoom.replace(/\s*\(REM-\d+\)/, '').trim()}</p>
+  <p className="text-4xl text-gray-600 mt-2">
+    {item.start.toFormat('h:mm a')} – {item.end.toFormat('h:mm a')}
+  </p>
+</div>
               </div>
             </div>
             ))
@@ -160,11 +163,14 @@ className="bg-white text-black shadow-lg min-h-[260px] rounded-2xl p-6 border bo
         className="w-42 h-42 rounded-xl object-cover"
       />
      <div className="flex-1 space-y-2 flex flex-col items-center text-center">
-     <p className="text-6xl font-bold">{item.title}</p>
-                <p className="text-3xl text-gray-500 mt-1">{item.controlRoom}</p>
-                <p className="text-4xl text-gray-600 mt-2">
-                  {item.start.toFormat('h:mm a')} – {item.end.toFormat('h:mm a')}
-                </p>
+     <div className="flex-1 space-y-3 flex flex-col items-center text-center">
+  <p className="text-6xl font-bold">{item.title}</p>
+  <p className="text-3xl text-gray-400">{item.studio.replace(/\s*\(REM-\d+\)/, '').trim()}</p>
+  <p className="text-3xl text-gray-500 mt-1">{item.controlRoom.replace(/\s*\(REM-\d+\)/, '').trim()}</p>
+  <p className="text-4xl text-gray-600 mt-2">
+    {item.start.toFormat('h:mm a')} – {item.end.toFormat('h:mm a')}
+  </p>
+</div>
       </div>
     </div>
   ))
