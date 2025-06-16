@@ -99,21 +99,21 @@ const parsed = cleaned.map(item => ({
   if (error) return <p className="text-red-600 text-lg">Error: {error}</p>;
 
   return (
-    <div className=" w-full min-h-screen mb-3 shadow-2xl rounded-md items-center  mx-auto px-4 py-4 flex flex-col text-center text-white">
-      <div className="bg-blue-700 p-2 mb-2 shadow-2xl max-w-fit  rounded-md">
+    <div className=" w-full min-h-screen mb-3  shadow-2xl rounded-md items-center  mx-auto px-4 py-4 flex flex-col text-center text-white">
+      <div className="bg-blue-700 p-2  mb-2 shadow-2xl max-w-fit  rounded-md">
         <h1 className="text-sm font-bold">{currentTime.toFormat('cccc, LLLL d, yyyy')}</h1>
         <p className="text-lg">{currentTime.toFormat('h:mm:ss a')}</p>
       </div>
   
       {/* Now Playing */}
-      <div className="flex-1 flex flex-col shadow-2xl  rounded-xl bg-red-600 p-4">
+      <div className="flex-1 flex flex-col animate-float shadow-2xl debug w-full rounded-xl bg-red-600 p-4">
         <h2 className="text-3xl font-bold mb-1">Now Playing</h2>
-        <div className="flex-1 flex flex-col  w-full gap-2 justify-around">
+        <div className="flex-1 flex  flex-col  w-full gap-2 justify-around">
           {nowAiring.length > 0 ? (
             nowAiring.map((item, i) => (
               <div
               key={i}
-              className="bg-white text-black shadow-lg rounded-2xl p-6 border border-gray-300 w-full flex items-center gap-6"
+className="bg-white text-black shadow-lg min-h-[260px] rounded-2xl p-6 border border-gray-300 w-full flex items-center gap-4"
             >
               <img
                 src={getShowImageSrc(item.title)}
@@ -125,10 +125,10 @@ const parsed = cleaned.map(item => ({
                 className="w-28 h-28 object-contain rounded-md flex-shrink-0"
               />
             
-              <div className="flex-1 text-center">
+            <div className="flex-1 flex flex-col items-center text-center">
                 <p className="text-4xl font-bold">{item.title}</p>
-                <p className="text-sm text-gray-500 mt-1">{item.controlRoom}</p>
-                <p className="text-xl text-gray-600 mt-2">
+                <p className="text-xl text-gray-500 mt-1">{item.controlRoom}</p>
+                <p className="text-4xl text-gray-600 mt-2">
                   {item.start.toFormat('h:mm a')} – {item.end.toFormat('h:mm a')}
                 </p>
               </div>
@@ -141,14 +141,14 @@ const parsed = cleaned.map(item => ({
       </div>
   
       {/* Up Next */}
-      <div className="flex-1 flex flex-col mt-3 bg-blue-700 rounded-xl shadow-md shadow-black p-4 overflow-y-auto">
+      <div className="flex-1 flex flex-col mt-3 bg-blue-700  w-full rounded-xl shadow-md shadow-black p-4 overflow-y-auto">
         <h2 className="text-3xl font-bold mb-1">Up Next</h2>
         <div className="flex-1 flex flex-col gap-6 justify-around">
         {upNext.length > 0 ? (
   upNext.map((item, i) => (
     <div
       key={i}
-      className="bg-white text-black shadow-lg rounded-2xl p-6 border border-gray-300 w-full flex items-center gap-6"
+className="bg-white text-black shadow-lg min-h-[260px] rounded-2xl p-6 border border-gray-300 w-full flex items-center gap-4"
     >
       <img
         src={getShowImageSrc(item.title)}
@@ -159,10 +159,10 @@ const parsed = cleaned.map(item => ({
         }}
         className="w-28 h-28 object-contain rounded-md flex-shrink-0"
       />
-      <div className="flex-1 text-center">
-        <p className="text-4xl font-bold">{item.title}</p>
-        <p className="text-sm text-gray-500 mt-1">{item.controlRoom}</p>
-        <p className="text-xl text-gray-600 mt-2">
+     <div className="flex-1 flex flex-col items-center text-center">
+     <p className="text-4xl font-bold">{item.title}</p>
+                <p className="text-xl text-gray-500 mt-1">{item.controlRoom}</p>
+                <p className="text-4xl text-gray-600 mt-2">
           {item.start.toFormat('h:mm a')} – {item.end.toFormat('h:mm a')}
         </p>
       </div>

@@ -12,8 +12,8 @@ const corsHandler = cors({ origin: true });
 const handler = async () => {
   const JIRA_API = 'https://jira.news.apps.fox/rest/api/2/search?jql=filter%3D22719&fields=customfield_18703,customfield_18822,customfield_17902,customfield_18752,customfield_16811';
   const POST_URL = 'https://us-central1-tv-schedule-app-nico.cloudfunctions.net/receiveSchedule';
-  const API_TOKEN = process.env.VITE_JIRA_API_TOKEN;
-  const email = process.env.VITE_JIRA_EMAIL;
+  const API_TOKEN = process.env.JIRA_API_TOKEN;
+  const email = process.env.JIRA_EMAIL;
 
 
 console.log('🔐 Using Bearer token:', API_TOKEN ? '✅ present' : '❌ missing');
@@ -56,6 +56,12 @@ const res = await fetch(JIRA_API, {
     body: JSON.stringify(items)
   });
 
+  if (!res.ok) {
+    const msg = await res.text();
+    console.error(`🧨 Full response from JIRA:\n${msg}`);
+    throw new Error(`JIRA API error: ${res.status}`);
+  }
+
   if (!postRes.ok) {
     const msg = await postRes.text();
     throw new Error(`POST failed: ${postRes.status} – ${msg}`);
@@ -66,7 +72,7 @@ const res = await fetch(JIRA_API, {
 
 // ========== Schedule Firestore Ingest ==========
 export const scrapeNow = functions
-  .runWith({ secrets: ['VITE_JIRA_API_TOKEN', 'VITE_JIRA_EMAIL'] })
+  .runWith({ secrets: ['JIRA_API_TOKEN', 'JIRA_EMAIL'] })
   .https.onRequest(async (req, res) => {
     try {
       await handler();
@@ -78,7 +84,7 @@ export const scrapeNow = functions
   });
 
 export const scheduledScrape = functions
-  .runWith({ secrets: ['VITE_JIRA_API_TOKEN', 'VITE_JIRA_EMAIL'] })
+  .runWith({ secrets: ['JIRA_API_TOKEN', 'JIRA_EMAIL'] })
   .pubsub.schedule('0 3,16 * * *') // 3am & 4pm Eastern
   .timeZone('America/New_York')
   .onRun(async () => {

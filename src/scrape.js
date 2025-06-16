@@ -5,8 +5,8 @@ import 'dotenv/config'
 
 const JIRA_API = 'https://jira.news.apps.fox/rest/api/2/search?jql=filter%3D22719&fields=customfield_18703,customfield_18822,customfield_17902,customfield_18752,customfield_16811';
 const POST_URL = 'https://us-central1-tv-schedule-app-nico.cloudfunctions.net/receiveSchedule';
-const API_TOKEN = process.env.VITE_JIRA_API_TOKEN;
-const email = process.env.VITE_JIRA_EMAIL;
+const API_TOKEN = process.env.JIRA_API_TOKEN;
+const email = process.env.JIRA_EMAIL;
 const authString = Buffer.from(`${email}:${API_TOKEN}`).toString('base64');
 
 (async () => {
