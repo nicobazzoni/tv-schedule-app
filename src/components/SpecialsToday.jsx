@@ -13,7 +13,7 @@ export default function SpecialsToday() {
       if (!res.ok) throw new Error('Failed to fetch schedule');
       const data = await res.json();
       setSchedule(data.events || []);
-      console.log(data)
+      console.log( 'special',data)
       setError(null);
     } catch (err) {
       console.error(err);

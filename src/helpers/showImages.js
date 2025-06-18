@@ -20,6 +20,10 @@ import weathercenter from '../assets/weathercenter.jpg'
 import makingmoney from '../assets/making money.jpg'
 import kudlow from '../assets/kudlow.webp'
 import willcain from '../assets/willcain.jpg'
+import foxnewslive from '../assets/foxnewslive.jpg'
+import eveningedit from '../assets/eveningedit.jpg'
+import gutfeld from '../assets/gutfeld.jpg'
+import ingrahamangle from '../assets/ingrahamangle.jpg'
 
 // Brand icons
 import businessIcon from '../assets/business.png';
@@ -52,8 +56,11 @@ const showImageList = [
   { keyword: 'outnumbered', image: outnumbered, type: 'news' },
   { keyword: 'kudlow', image: kudlow, type: 'news' },
   { keyword: 'willcain', image: willcain, type: 'news' },
-  
+  { keyword: 'eveningedit', image: eveningedit, type: 'news' },
+  { keyword: 'gutfeld', image: gutfeld, type: 'news' },
+  { keyword: 'ingrahamangle', image: ingrahamangle, type: 'news' },
   { keyword: 'makingmoney', image: makingmoney, type: 'business' },
+  { keyword: 'foxnewslive', image: foxnewslive, type: 'news' },
 ];
 
 // helpers/showImages.js
@@ -68,7 +75,6 @@ export const getShowMeta = (title) => {
     .replace(/[^a-z0-9]/g, "")
     .trim();
 
-    console.log("Normalized key:", key);
 
   const match = showImageList.find(entry =>
     key.includes(entry.keyword)
