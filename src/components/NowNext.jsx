@@ -91,7 +91,7 @@ export default function NowNext() {
         <img
           src={brand}
           alt={`${type} icon`}
-          className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 rounded-xl object-cover"
+          className="w-20 h-20 sm:w-32 sm:h-32 md:w-40 md:h-40 rounded-xl object-cover"
         />
 
         
@@ -109,7 +109,7 @@ export default function NowNext() {
             e.target.onerror = null;
             e.target.src = newsIcon;
           }}
-          className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 rounded-xl "
+          className="w-54 h-52  rounded-xl "
         />
       </div>
     );
@@ -119,11 +119,18 @@ export default function NowNext() {
   if (error) return <p className="text-red-600 text-lg">Error: {error}</p>;
 
   return (
-    <div className="w-full min-h-screen mb-3 shadow-2xl rounded-md items-center mx-auto px-4 py-4 flex flex-col text-center text-white">
-      <div className="bg-blue-700 p-2 mb-2 shadow-2xl max-w-fit rounded-md">
-        <h1 className="text-sm font-bold">{currentTime.toFormat('cccc, LLLL d, yyyy')}</h1>
-        <p className="text-lg">{currentTime.toFormat('h:mm:ss a')}</p>
-      </div>
+    <div className="w-full min-h-screen mb-3 shadow-2xl rounded-md mx-auto px-4 py-4 flex flex-col text-white">
+    {/* Header bar */}
+    <div className="bg-blue-700 flex justify-between items-center p-2 mb-4 shadow-2xl rounded-md w-full max-w-2xl mx-auto">
+      {/* Date on the left */}
+      <h1 className="text-sm font-bold">
+        {currentTime.toFormat('cccc, LLLL d, yyyy')}
+      </h1>
+      {/* Time on the right */}
+      <p className="text-lg">
+        {currentTime.toFormat('h:mm:ss a')}
+      </p>
+    </div>
 
       <div className="flex-1 flex flex-col animate-float shadow-2xl w-full rounded-xl bg-red-600 p-4">
         <h2 className="text-3xl font-bold mb-1">Now Playing</h2>
